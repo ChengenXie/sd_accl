@@ -1,8 +1,14 @@
 # sd_accel/core/optimizers.py
+import torch
 from diffusers import StableDiffusionPipeline
 
-def apply_mixed_precision(pipe: StableDiffusionPipeline, dtype_str: str) -> None:
-    # diffusers里多数权重dtype已经由 from_pretrained(torch_dtype=...) 决定
-    # 你可以在这里放一些额外设定，比如关闭某些不必要模块、VAE slicing等
-    pipe.enable_vae_slicing()     # 降显存（可能稍慢）
-    pipe.enable_attention_slicing()  # 降显存（可能稍慢）
+def apply_mixed_precision(pipe: StableDiffusionPipeline, unet_dtype: torch.dtype, vae_dtype: torch.dtype, text_dtype) -> None:
+    if unet_dtype is not None and unet_dtype != torch.float32:
+        pipe.unet.to(device=pipe.device, dtype=unet_dtype)
+    
+    if vae_dtype is not None and vae_dtype != torch.float32:
+        pipe.vae.to(device=pipe.device, dtype=vae_dtype)
+    
+    if text_dtype is not None and getattr(pipe, "text_encoder", None) is not None:
+        pipe.text_encoder.to(device=pipe.device, dtype=text_dtype)
+  

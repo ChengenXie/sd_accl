@@ -1,9 +1,7 @@
-# scripts/run_generate.py
 import os
 import sys
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -41,14 +39,16 @@ def main(cfg_path: str, prompt: str):
     torch.cuda.synchronize()
     t0 = time.perf_counter()
 
-    out = pipe(
-        prompt=prompt,
-        num_inference_steps=total_steps,
-        guidance_scale=float(gen_cfg.get("guidance_scale", 7.5)),
-        height=int(gen_cfg.get("height", 512)),
-        width=int(gen_cfg.get("width", 512)),
-        num_images_per_prompt=int(gen_cfg.get("num_images_per_prompt", 1)),
-    )
+    with torch.inference_mode():
+        with torch.autocast(device_type="cuda", dtype=pipe.unet.dtype):
+            out = pipe(
+                prompt=prompt,
+                num_inference_steps=total_steps,
+                guidance_scale=float(gen_cfg.get("guidance_scale", 7.5)),
+                height=int(gen_cfg.get("height", 512)),
+                width=int(gen_cfg.get("width", 512)),
+                num_images_per_prompt=int(gen_cfg.get("num_images_per_prompt", 1)),
+            )
 
     torch.cuda.synchronize()
     t1 = time.perf_counter()
@@ -63,34 +63,21 @@ def main(cfg_path: str, prompt: str):
 
 @torch.no_grad()
 def run_adaptive_decision(pipe, adaptive, prompt: str, cfg):
-    """
-    这里给的是“先跑warmup步数，拿一个proxy score，再决定最终步数”的框架。
-    为了保持代码短，我这里先用一个简化版本：直接用pipe跑warmup并开启output_type='latent'，
-    然后在callback里抓某一步UNet输出（需要你后续把callback机制对接上）。
-    """
     warmup_steps = adaptive.cfg.warmup_steps
-
-    # 简化策略：先用warmup_steps生成一次（低成本），再根据某个proxy决定最终总步数，然后再生成最终图
-    # 注意：这会做两次推理，后面你可优化成“复用latent继续走”。
     proxy_score = estimate_uncertainty_quick(pipe, prompt, warmup_steps, cfg)
     total_steps = adaptive.decide_total_steps(proxy_score)
     print(f"[ADAPT] warmup_steps={warmup_steps} uncertainty={proxy_score:.4f} -> total_steps={total_steps}")
     return total_steps
 
 def estimate_uncertainty_quick(pipe, prompt: str, warmup_steps: int, cfg) -> float:
-    """
-    占位实现：先返回一个可运行的dummy（固定值），保证工程跑通。
-    你下一步把它替换为：
-    - 自定义denoising loop，拿到UNet某一步pred_eps
-    - 用 uncertainty_pred_variance(pred_eps) 得到score
-    """
+   
     _ = pipe(
         prompt=prompt,
         num_inference_steps=warmup_steps,
         guidance_scale=float(cfg.get("generation", {}).get("guidance_scale", 7.5)),
         height=int(cfg.get("generation", {}).get("height", 512)),
         width=int(cfg.get("generation", {}).get("width", 512)),
-        output_type="latent",  # 先不解码成图，省点时间
+        output_type="latent",
     )
     return 0.18  # TODO: 替换成真实的不确定性估计
 

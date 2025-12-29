@@ -27,7 +27,7 @@ safetensors==0.7.0
 shellingham==1.5.4
 sympy==1.14.0
 tokenizers==0.22.1
-torch==2.9.1
+torch
 tqdm==4.67.1
 transformers==4.57.3
 typer-slim==0.20.1

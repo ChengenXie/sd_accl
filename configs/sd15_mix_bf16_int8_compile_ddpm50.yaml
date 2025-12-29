@@ -1,16 +1,17 @@
 model_id: "stable-diffusion-v1-5/stable-diffusion-v1-5"
 
 device: "cuda"
-dtype: "bf16"          # "fp32" | "fp16" | "bf16"
+unet_dtype: "bf16"          # "fp32" | "fp16" | "bf16"
+vae_dtype: "bf16"          # "fp32" | "fp16" | "bf16"
+text_encoder_dtype: "int8"  # "fp32" | "fp16" | "int8"
 seed: 42
 
 compile:
   enabled: true
-  mode: "reduce-overhead"   # 或 "max-autotune"
+  mode: "max-autotune"
   fullgraph: false
-
-attention:
-  xformers: true
+  dynamic: false
+  compile_vae: false
 
 quant:
   enabled: false
@@ -21,11 +22,11 @@ token_merge:
   ratio: 0.4           # 占位：40% 计算减少(实现时再映射到具体策略)
 
 sampler:
-  name: "dpm_solver++" # "ddpm" | "dpm_solver++"
-  steps: 10
+  name: "ddpm" # "ddpm" | "dpm_solver++"
+  steps: 50
 
 adaptive:
-  enabled: true
+  enabled: false
   warmup_steps: 5
   min_steps: 5
   max_steps: 20
@@ -41,6 +42,6 @@ generation:
   num_images_per_prompt: 1
 
 io:
-  out_dir: "outputs/ours_adaptive"
+  out_dir: "outputs/sd15_mix_bf16_int8_compile_ddpm50"
   save_latents: false
   save_grid: true
