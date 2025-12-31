@@ -11,13 +11,6 @@ compile:
   mode: "reduce-overhead"   # 或 "max-autotune"
   fullgraph: false
 
-quant:
-  enabled: false
-  scheme: "int8"       # 占位：你可以用 bnb 或 torchao
-
-token_merge:
-  enabled: false
-  ratio: 0.4           # 占位：40% 计算减少(实现时再映射到具体策略)
 
 sampler:
   name: "ddpm" # "ddpm" | "dpm_solver++"

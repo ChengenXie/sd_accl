@@ -12,6 +12,7 @@ from PIL import Image
 from sd_accel.core.pipeline_factory import build_pipeline
 from sd_accel.utils.gpu_stats import reset_peak_memory, peak_memory_gb
 from sd_accel.core.seed import seed_everything
+from sd_accel.adaptive.uncertainty import estimate_uncertainty_from_pipeline
 
 def save_image(img: Image.Image, path: str):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -70,16 +71,10 @@ def run_adaptive_decision(pipe, adaptive, prompt: str, cfg):
     return total_steps
 
 def estimate_uncertainty_quick(pipe, prompt: str, warmup_steps: int, cfg) -> float:
-   
-    _ = pipe(
-        prompt=prompt,
-        num_inference_steps=warmup_steps,
-        guidance_scale=float(cfg.get("generation", {}).get("guidance_scale", 7.5)),
-        height=int(cfg.get("generation", {}).get("height", 512)),
-        width=int(cfg.get("generation", {}).get("width", 512)),
-        output_type="latent",
-    )
-    return 0.18  # TODO: 替换成真实的不确定性估计
+    """
+    快速估计不确定性：调用 uncertainty 模块的函数从 pipeline 获取预测噪声并计算不确定性。
+    """
+    return estimate_uncertainty_from_pipeline(pipe, prompt, warmup_steps, cfg)
 
 if __name__ == "__main__":
     import argparse

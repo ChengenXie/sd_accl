@@ -23,7 +23,9 @@ def benchmark(cfg_path: str, prompts: list[str], iters: int = 20, warmup: int = 
 
     # warmup
     for _ in range(warmup):
-        _ = pipe(prompts[0], num_inference_steps=steps, output_type="latent")
+        with torch.inference_mode():
+            with torch.autocast(device_type="cuda", dtype=pipe.unet.dtype):
+                _ = pipe(prompts[0], num_inference_steps=steps, output_type="latent")
     torch.cuda.synchronize()
 
     times = []
@@ -31,14 +33,15 @@ def benchmark(cfg_path: str, prompts: list[str], iters: int = 20, warmup: int = 
     for i in range(iters):
         prompt = prompts[i % len(prompts)]
         t0 = time.perf_counter()
-        _ = pipe(
-            prompt,
-            num_inference_steps=steps,
-            guidance_scale=float(gen_cfg.get("guidance_scale", 7.5)),
-            height=int(gen_cfg.get("height", 512)),
-            width=int(gen_cfg.get("width", 512)),
-            output_type="latent",
-        )
+        with torch.inference_mode():
+            with torch.autocast(device_type="cuda", dtype=pipe.unet.dtype):
+                _ = pipe(
+                    prompt,
+                    num_inference_steps=steps,
+                    guidance_scale=float(gen_cfg.get("guidance_scale", 7.5)),
+                    height=int(gen_cfg.get("height", 512)),
+                    width=int(gen_cfg.get("width", 512)),
+                )
         torch.cuda.synchronize()
         times.append(time.perf_counter() - t0)
 
@@ -49,4 +52,4 @@ def benchmark(cfg_path: str, prompts: list[str], iters: int = 20, warmup: int = 
 
 if __name__ == "__main__":
     prompts = ["a photo of a cat", "a futuristic city at sunset", "a watercolor landscape"]
-    benchmark("configs/ours_adaptive.yaml", prompts)
+    benchmark("configs/sd15_mix_bf16_int8_dpm10.yaml", prompts)
